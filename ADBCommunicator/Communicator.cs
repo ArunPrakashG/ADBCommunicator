@@ -3,7 +3,9 @@ using SharpAdbClient;
 using Synergy.Logging;
 using Synergy.Logging.Interfaces;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Reflection;
 using System.Threading;
 
@@ -12,6 +14,9 @@ namespace ADBCommunicator {
 		private static readonly ILogger Logger = new Logger(nameof(Communicator));
 		private static readonly Mutex ServerInstanceMutex;
 		private static readonly AdbServer Server = new AdbServer();
+
+		private readonly DeviceMonitor DeviceMonitor;
+		private readonly List<DeviceData> ConnectedDevices = new List<DeviceData>();
 
 		static Communicator() {
 			string _mutexName = Assembly.GetExecutingAssembly().GetName().Name + "-Mutex";
@@ -38,7 +43,53 @@ namespace ADBCommunicator {
 		}
 
 		internal Communicator() {
+			DeviceMonitor = new DeviceMonitor(new AdbSocket(new IPEndPoint(IPAddress.Loopback, AdbClient.AdbServerPort)));
+		}
 
+		internal void StartNewDeviceMonitor() {
+			if (!DeviceMonitor.IsRunning) {
+				DeviceMonitor.Start();
+			}
+
+			DeviceMonitor.DeviceConnected += OnDeviceConnected;
+			DeviceMonitor.DeviceDisconnected += OnDeviceDisconnected;
+			DeviceMonitor.DeviceChanged += OnDeviceChanged;
+		}
+
+		private void OnDeviceChanged(object? sender, DeviceDataEventArgs e) {
+
+		}
+
+		private void OnDeviceDisconnected(object? sender, DeviceDataEventArgs e) {
+			if (e == null || e.Device == null) {
+				return;
+			}
+
+			ConnectedDevices.RemoveAll(x => x.Serial.Equals(e.Device.Serial));
+		}
+
+		private void OnDeviceConnected(object? sender, DeviceDataEventArgs e) {
+			if (e == null || e.Device == null) {
+				return;
+			}
+
+			if (IsDuplicate(e.Device.Serial)) {
+				return;
+			}
+
+			ConnectedDevices.Add(e.Device);
+		}
+
+
+
+		private bool IsDuplicate(string? serial) {
+			for (int i = 0; i < ConnectedDevices.Count; i++) {
+				if (ConnectedDevices[i].Serial.Equals(serial)) {
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		internal static bool StartServer(string? adbPath = null) {
@@ -48,7 +99,7 @@ namespace ADBCommunicator {
 				}
 			}
 
-			Server.StartServer(adbPath, true);
+			Server.StartServer(adbPath + "/" + Constants.ADB_EXE_NAME, true);
 			return true;
 		}
 
