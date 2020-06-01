@@ -253,6 +253,7 @@ namespace ADBCommunicator {
 		}
 
 		public void Dispose() {
+
 			ServerInstanceMutex.ReleaseMutex();
 			ServerInstanceMutex.Dispose();
 			Client.Disconnect(new DnsEndPoint(IPAddress.Loopback.ToString(), AdbClient.AdbServerPort));

@@ -57,7 +57,7 @@ namespace ADBCommunicator {
 						Dictionary<string, string> packages = Communicator.DisplayAllPackages(selectedDevice);
 
 						if(packages.Count > 0) {
-							foreach(var packPair in packages) {
+							foreach(KeyValuePair<string, string> packPair in packages) {
 								Out($"{packPair.Key} | {packPair.Value}", ConsoleColor.Green);
 							}
 
